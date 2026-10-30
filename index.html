@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deloitte Global Performance & Live Analytics Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        deloitte: {
+                            green: '#86BC25',
+                            darkGreen: '#005522',
+                            black: '#000000',
+                            charcoal: '#111827',
+                            cardDark: '#1E293B',
+                            cardLight: '#FFFFFF',
+                            accent: '#86BC25'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+        .dark ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        ::-webkit-scrollbar-thumb { background: #86BC25; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6ba01b; }
+
+        .deloitte-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .deloitte-card:hover {
+            transform: translateY(-4px);
+            border-color: #86BC25;
+            box-shadow: 0 12px 25px -5px rgba(134, 188, 37, 0.25);
+        }
+
+        .emoji-btn {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
+            display: inline-block;
+        }
+        .emoji-btn:hover { transform: scale(1.25) rotate(6deg); }
+        .emoji-btn:active { transform: scale(0.95); }
+
+        .glass-panel {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .tab-btn.active {
+            border-bottom: 3px solid #86BC25;
+            color: #86BC25;
+            font-weight: 700;
+        }
+
+        /* ===== EXECUTIVE NEXUS INTRO ===== */
+        #introSplash {
+            position: fixed; inset: 0; z-index: 100; overflow: hidden;
+            background: transparent; color: #fff;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px; user-select: none;
+            perspective: 1200px;
+        }
+        .in-shutter-top, .in-shutter-bottom {
+            position: absolute; left: 0; right: 0; height: 50.5%;
+            background: radial-gradient(circle at 50% 50%, #0a1109 0%, #030504 100%);
+            z-index: 0; transition: transform 1.05s cubic-bezier(0.85, 0, 0.15, 1);
+        }
+        .in-shutter-top { top: 0; border-bottom: 1px solid rgba(134, 188, 37, 0.18); }
+        .in-shutter-bottom { bottom: 0; }
+        #introSplash.hide { pointer-events: none; }
+        #introSplash.hide .in-shutter-top { transform: translateY(-102%); }
+        #introSplash.hide .in-shutter-bottom { transform: translateY(102%); }
+        #introSplash.hide .in-stage, 
+        #introSplash.hide #introCanvas, 
+        #introSplash.hide .in-topbar,
+        #introSplash.hide .in-grid-overlay {
+            opacity: 0; transform: scale(0.94); transition: opacity 0.45s ease, transform 0.55s ease;
+        }
+
+        .in-grid-overlay {
+            position: absolute; inset: 0; z-index: 1; pointer-events: none;
+            background-size: 56px 56px;
+            background-image: 
+                linear-gradient(to right, rgba(134, 188, 37, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(134, 188, 37, 0.04) 1px, transparent 1px);
+            mask-image: radial-gradient(circle at 50% 50%, black 35%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at 50% 50%, black 35%, transparent 80%);
+        }
+        #introCanvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+        .in-topbar {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 4;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 28px; border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: rgba(3, 5, 4, 0.45); backdrop-filter: blur(10px);
+        }
+        .in-status {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 11px; font-weight: 600; letter-spacing: 2px; color: #9ca3af; text-transform: uppercase;
+        }
+        .in-status-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: #86BC25;
+            box-shadow: 0 0 12px #86BC25; animation: pulseDot 1.6s infinite;
+        }
+        @keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+
+        .in-skip {
+            background: rgba(255,255,255,0.04); color: #d1d5db;
+            border: 1px solid rgba(255,255,255,0.14); font-size: 11px; font-weight: 600;
+            letter-spacing: 1.5px; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+            transition: all 0.25s ease; display: flex; align-items: center; gap: 6px;
+        }
+        .in-skip:hover { background: rgba(134,188,37,0.15); border-color: #86BC25; color: #fff; transform: translateX(2px); }
+
+        .in-stage {
+            position: relative; z-index: 3; max-width: 980px; width: 100%;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            margin-top: 24px;
+        }
+
+        .in-pill {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 16px; border-radius: 999px;
+            background: rgba(134, 188, 37, 0.1); border: 1px solid rgba(134, 188, 37, 0.35);
+            color: #a3e635; font-size: 11px; font-weight: 700; letter-spacing: 2.5px;
+            text-transform: uppercase; margin-bottom: 16px;
+            opacity: 0; transform: translateY(12px); animation: fadeUp 0.7s 0.2s cubic-bezier(.16,1,.3,1) forwards;
+        }
+
+        .in-brand-wrap {
+            display: flex; align-items: baseline; justify-content: center;
+            font-size: clamp(52px, 10vw, 114px); font-weight: 800;
+            letter-spacing: -0.045em; line-height: 0.95; position: relative;
+        }
+        .in-letters { display: inline-flex; overflow: hidden; padding-bottom: 0.08em; }
+        .in-letters span {
+            display: inline-block; transform: translateY(115%);
+            animation: slideLetter 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideLetter { to { transform: translateY(0); } }
+
+        .in-green-dot {
+            width: 0.165em; height: 0.165em; border-radius: 50%;
+            background: #86BC25; margin-left: 0.055em; position: relative;
+            box-shadow: 0 0 35px #86BC25, 0 0 70px rgba(134, 188, 37, 0.6);
+            transform: scale(0);
+            animation: dotImpact 0.75s 1.05s cubic-bezier(0.34, 1.85, 0.64, 1) forwards;
+        }
+        .in-green-dot::after {
+            content: ''; position: absolute; inset: -4px; border-radius: 50%;
+            border: 2px solid #86BC25; opacity: 0;
+            animation: dotSonar 1.8s 1.35s ease-out infinite;
+        }
+        @keyframes dotImpact { 0% { transform: scale(0); } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+        @keyframes dotSonar { 0% { transform: scale(0.8); opacity: 0.9; } 100% { transform: scale(4.5); opacity: 0; } }
+
+        .in-headline {
+            margin-top: 14px; font-size: clamp(15px, 2.1vw, 22px);
+            font-weight: 400; color: #cbd5e1; max-width: 680px; line-height: 1.45;
+            opacity: 0; transform: translateY(14px);
+            animation: fadeUp 0.8s 1.4s ease forwards;
+        }
+        .in-headline strong {
+            color: #fff; font-weight: 700;
+            background: linear-gradient(90deg, #ffffff, #86BC25);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .in-scrubber {
+            width: min(100%, 680px); margin-top: 22px;
+            background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 16px; padding: 14px 20px; backdrop-filter: blur(12px);
+            opacity: 0; transform: translateY(16px);
+            animation: fadeUp 0.8s 1.75s ease forwards;
+        }
+        .in-scrub-head {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; font-weight: 700; margin-bottom: 8px;
+        }
+        .in-scrub-yr { color: #86BC25; letter-spacing: 1px; font-family: monospace; font-size: 13px; }
+        .in-scrub-val { color: #fff; font-size: 14px; font-weight: 800; }
+        .in-scrub-track {
+            width: 100%; height: 6px; background: rgba(255,255,255,0.08);
+            border-radius: 999px; overflow: hidden; position: relative;
+        }
+        .in-scrub-fill {
+            height: 100%; width: 0%; border-radius: 999px;
+            background: linear-gradient(90deg, #3b7a12, #86BC25, #bef264);
+            box-shadow: 0 0 16px rgba(134, 188, 37, 0.8);
+            transition: width 0.08s linear;
+        }
+        .in-scrub-ticks {
+            display: flex; justify-content: space-between; margin-top: 6px;
+            font-size: 10px; color: #64748b; font-weight: 600; letter-spacing: 0.5px;
+        }
+
+        .in-bento {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            width: min(100%, 820px); margin-top: 18px;
+        }
+        @media (max-width: 640px) { .in-bento { grid-template-columns: repeat(2, 1fr); } }
+        .in-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px; padding: 14px 14px;
+            backdrop-filter: blur(10px); text-align: left;
+            transition: all 0.3s ease; opacity: 0; transform: translateY(16px);
+            animation: fadeUp 0.7s ease forwards;
+        }
+        .in-card:nth-child(1) { animation-delay: 2.1s; }
+        .in-card:nth-child(2) { animation-delay: 2.22s; }
+        .in-card:nth-child(3) { animation-delay: 2.34s; }
+        .in-card:nth-child(4) { animation-delay: 2.46s; }
+        .in-card:hover {
+            border-color: rgba(134, 188, 37, 0.6);
+            background: rgba(134, 188, 37, 0.07);
+            transform: translateY(-4px);
+        }
+        .in-card-tag {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: #86BC25; margin-bottom: 4px; display: block;
+        }
+        .in-card strong {
+            font-size: clamp(20px, 2.8vw, 30px); font-weight: 800; color: #fff;
+            letter-spacing: -0.02em; display: block; line-height: 1.1;
+        }
+        .in-card small { font-size: 11px; color: #94a3b8; font-weight: 500; display: block; margin-top: 4px; }
+
+        .in-cta-wrap {
+            margin-top: 24px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+            opacity: 0; transform: translateY(12px);
+            animation: fadeUp 0.8s 2.75s ease forwards;
+        }
+        .in-cta {
+            position: relative; overflow: hidden;
+            background: #86BC25; color: #040804;
+            border: none; border-radius: 999px;
+            padding: 14px 36px; font-size: 13px; font-weight: 800;
+            letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+            box-shadow: 0 0 30px rgba(134, 188, 37, 0.45);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex; align-items: center; gap: 10px;
+        }
+        .in-cta:hover {
+            background: #9ad432;
+            transform: scale(1.05);
+            box-shadow: 0 0 45px rgba(134, 188, 37, 0.8);
+        }
+        .in-cta-hint { font-size: 11px; color: #64748b; letter-spacing: 1px; }
+
+        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col">
+
+    <!-- ================= EXECUTIVE NEXUS INTRO SPLASH ================= -->
+    <div id="introSplash" role="dialog" aria-label="Deloitte Executive Portal">
+        <div class="in-shutter-top"></div>
+        <div class="in-shutter-bottom"></div>
+        <div class="in-grid-overlay"></div>
+
+        <canvas id="introCanvas"></canvas>
+
+        <div class="in-topbar">
+            <div class="in-status">
+                <span class="in-status-dot"></span>
+                <span id="introTelemetryLabel">DELOITTE GLOBAL TELEMETRY · FETCHING LIVE DATA...</span>
+            </div>
+            <button class="in-skip" onclick="dismissIntroModal(false)">
+                <span>BYPASS INTRO</span> <span>ESC ›</span>
+            </button>
+        </div>
+
+        <div class="in-stage">
+            <div class="in-pill">
+                <span>●</span> MAKING AN IMPACT THAT MATTERS · DECADE REVIEW
+            </div>
+
+            <div class="in-brand-wrap" role="img" aria-label="Deloitte.">
+                <div class="in-letters">
+                    <span style="animation-delay:0.30s">D</span>
+                    <span style="animation-delay:0.36s">e</span>
+                    <span style="animation-delay:0.42s">l</span>
+                    <span style="animation-delay:0.48s">o</span>
+                    <span style="animation-delay:0.54s">i</span>
+                    <span style="animation-delay:0.60s">t</span>
+                    <span style="animation-delay:0.66s">t</span>
+                    <span style="animation-delay:0.72s">e</span>
+                </div>
+                <div class="in-green-dot"></div>
+            </div>
+
+            <p class="in-headline">
+                From <strong>$35.2B to $70.5B</strong> — explore how 470,000+ minds engineered a decade of <strong>unbroken global growth.</strong>
+            </p>
+
+            <div class="in-scrubber">
+                <div class="in-scrub-head">
+                    <span class="in-scrub-yr" id="scrubYearLabel">TIMELINE: FY 2015</span>
+                    <span class="in-scrub-val" id="scrubRevLabel">$35.2B USD</span>
+                </div>
+                <div class="in-scrub-track">
+                    <div class="in-scrub-fill" id="scrubFillBar"></div>
+                </div>
+                <div class="in-scrub-ticks">
+                    <span>FY15 ($35.2B)</span>
+                    <span>FY18 ($43.2B)</span>
+                    <span>FY21 ($50.2B)</span>
+                    <span class="text-deloitte-green">FY25 ($70.5B · +100.3%)</span>
+                </div>
+            </div>
+
+            <div class="in-bento">
+                <div class="in-card">
+                    <span class="in-card-tag">Peak Revenue</span>
+                    <strong data-to="70.5" data-pre="$" data-suf="B" data-dec="1">$0.0B</strong>
+                    <small>FY25 Global Record</small>
+                </div>
+                <div class="in-card">
+                    <span class="in-card-tag">10-Yr Cumulative</span>
+                    <strong data-to="559.9" data-pre="$" data-suf="B" data-dec="1">$0.0B</strong>
+                    <small>Aggregate Value Delivered</small>
+                </div>
+                <div class="in-card">
+                    <span class="in-card-tag">Global Talent</span>
+                    <strong data-to="470" data-suf="K+" data-dec="0">0K+</strong>
+                    <small>Across 150+ Countries</small>
+                </div>
+                <div class="in-card">
+                    <span class="in-card-tag">Decade CAGR</span>
+                    <strong data-to="7.19" data-suf="%" data-dec="2">0.00%</strong>
+                    <small>Consistent Compounding</small>
+                </div>
+            </div>
+
+            <div class="in-cta-wrap">
+                <button class="in-cta" id="introEnterBtn" onclick="dismissIntroModal(true)">
+                    <span>LAUNCH ANALYTICS SUITE</span>
+                    <span>→</span>
+                </button>
+                <span class="in-cta-hint">Press ENTER or click to open interactive terminal</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HEADER & NAVIGATION ================= -->
+    <header class="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 border-b border-gray-200 dark:border-slate-800 glass-panel">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-2 cursor-pointer" onclick="replayIntro()" title="Replay Intro Animation">
+                    <svg class="h-8 w-auto text-black dark:text-white" viewBox="0 0 400 80" fill="none">
+                        <text x="5" y="62" font-family="'Inter', sans-serif" font-weight="800" font-size="64" fill="currentColor">Deloitte</text>
+                        <circle cx="288" cy="54" r="9" fill="#86BC25" />
+                    </svg>
+                </div>
+                <div class="h-6 w-[1px] bg-gray-300 dark:bg-slate-700 hidden sm:block"></div>
+                <div class="hidden sm:block">
+                    <h1 class="text-lg font-bold leading-none tracking-tight text-gray-900 dark:text-white flex items-center gap-1.5">
+                        Performance Analytics <span class="emoji-btn text-base cursor-pointer" onclick="playAudio('pop')">✨</span>
+                    </h1>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                        <span id="dataStatusIndicator" class="w-2 h-2 rounded-full bg-amber-500 inline-block animate-ping"></span>
+                        <span id="dataStatusText">Fetching External Live API...</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-1 border-b md:border-b-0 border-gray-200 dark:border-slate-800">
+                <button id="tabOverview" onclick="switchView('overview')" class="tab-btn active px-4 py-2 text-sm font-semibold transition flex items-center gap-1.5 text-gray-700 dark:text-slate-200">
+                    <span class="emoji-btn text-base">📊</span> Overview & Trends
+                </button>
+                <button id="tabCompare" onclick="switchView('compare')" class="tab-btn px-4 py-2 text-sm font-semibold transition flex items-center gap-1.5 text-gray-500 dark:text-slate-400 hover:text-deloitte-green">
+                    <span class="emoji-btn text-base">⚖️</span> Year Comparison
+                </button>
+            </div>
+
+            <div class="flex items-center space-x-2.5 w-full md:w-auto justify-end">
+                <button onclick="replayIntro()" title="Replay Intro" class="p-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:border-deloitte-green hover:text-deloitte-green transition">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                </button>
+
+                <button id="soundToggleBtn" onclick="toggleSound()" title="Toggle Sound FX" class="p-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:border-deloitte-green hover:text-deloitte-green transition flex items-center gap-1">
+                    <span id="soundEmoji" class="emoji-btn text-base">🔊</span>
+                    <span id="soundLabel" class="text-xs font-semibold hidden sm:inline">SFX On</span>
+                </button>
+
+                <div id="overviewYearSelectContainer" class="relative min-w-[165px]">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-deloitte-green">
+                        <i data-lucide="calendar" class="w-4 h-4"></i>
+                    </div>
+                    <select id="yearSelect" onchange="handleYearChange(this.value)" class="w-full pl-9 pr-7 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-deloitte-green block font-semibold cursor-pointer transition">
+                        <option value="ALL" selected>All Years (11 FYs)</option>
+                    </select>
+                </div>
+
+                <button onclick="exportToCSV()" title="Export CSV Data" class="p-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:border-deloitte-green hover:text-deloitte-green transition">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+
+                <button id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode" class="p-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:border-deloitte-green hover:text-deloitte-green transition">
+                    <i id="themeIcon" data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="bg-gray-200/60 dark:bg-slate-900/60 border-b border-gray-300/40 dark:border-slate-800/80 py-1.5 px-4 text-center text-xs flex items-center justify-center gap-4 overflow-x-auto">
+        <span class="font-medium text-gray-500 dark:text-slate-400">Audio FX:</span>
+        <div class="flex items-center space-x-3">
+            <button onclick="playAudio('cash')" class="emoji-btn hover:bg-gray-300/50 dark:hover:bg-slate-800 p-1 rounded-md">💰 Revenue</button>
+            <button onclick="playAudio('fanfare')" class="emoji-btn hover:bg-gray-300/50 dark:hover:bg-slate-800 p-1 rounded-md">🚀 Growth</button>
+            <button onclick="playAudio('pop')" class="emoji-btn hover:bg-gray-300/50 dark:hover:bg-slate-800 p-1 rounded-md">💡 Audit</button>
+            <button onclick="playAudio('chime')" class="emoji-btn hover:bg-gray-300/50 dark:hover:bg-slate-800 p-1 rounded-md">💼 Consulting</button>
+            <button onclick="playAudio('swoosh')" class="emoji-btn hover:bg-gray-300/50 dark:hover:bg-slate-800 p-1 rounded-md">🌐 Global</button>
+            <button onclick="playAudio('chord')" class="emoji-btn hover:bg-gray-300/50 dark:hover:bg-slate-800 p-1 rounded-md">👥 Talent</button>
+        </div>
+    </div>
+
+    <!-- ================= MAIN DASHBOARD CONTAINER ================= -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
+
+        <div id="overviewSection" class="space-y-6">
+
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="emoji-btn text-xl cursor-pointer" onclick="playAudio('fanfare')">🏆</span>
+                    <div>
+                        <span id="livePillBadge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mr-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-deloitte-green mr-1.5 animate-pulse"></span> Connected to Live External API
+                        </span>
+                        <span id="bannerTitle" class="text-sm font-semibold text-gray-700 dark:text-slate-300">
+                            Displaying Aggregate Data: FY 2015 to FY 2025 (11 Fiscal Years)
+                        </span>
+                    </div>
+                </div>
+                <div id="bannerSub" class="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1">
+                    <span class="emoji-btn cursor-pointer" onclick="playAudio('cash')">📈</span>
+                    FY15–FY25 CAGR: <strong class="text-deloitte-green font-bold">7.19%</strong> Revenue Growth
+                </div>
+            </div>
+
+            <!-- KPI Cards Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between cursor-pointer" onclick="playAudio('cash')">
+                    <div class="flex items-center justify-between text-gray-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold tracking-wider uppercase flex items-center gap-1"><span class="emoji-btn text-base">💰</span> Global Revenue</span>
+                        <div class="p-1.5 rounded-lg bg-emerald-50 dark:bg-slate-800 text-deloitte-green"><i data-lucide="dollar-sign" class="w-4 h-4"></i></div>
+                    </div>
+                    <div>
+                        <div id="kpiRevenue" class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">$559.9B</div>
+                        <div id="kpiRevenueSub" class="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-1">11-FY Cumulative ($70.5B Peak)</div>
+                    </div>
+                </div>
+
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between cursor-pointer" onclick="playAudio('fanfare')">
+                    <div class="flex items-center justify-between text-gray-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold tracking-wider uppercase flex items-center gap-1"><span class="emoji-btn text-base">🚀</span> YoY Growth</span>
+                        <div class="p-1.5 rounded-lg bg-blue-50 dark:bg-slate-800 text-blue-500"><i data-lucide="percent" class="w-4 h-4"></i></div>
+                    </div>
+                    <div>
+                        <div id="kpiGrowth" class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">+100.3%</div>
+                        <div id="kpiGrowthSub" class="text-xs font-medium text-gray-500 dark:text-slate-400 mt-1">FY15 ($35.2B) to FY25 ($70.5B)</div>
+                    </div>
+                </div>
+
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between cursor-pointer" onclick="playAudio('chord')">
+                    <div class="flex items-center justify-between text-gray-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold tracking-wider uppercase flex items-center gap-1"><span class="emoji-btn text-base">👥</span> Headcount</span>
+                        <div class="p-1.5 rounded-lg bg-indigo-50 dark:bg-slate-800 text-indigo-500"><i data-lucide="users" class="w-4 h-4"></i></div>
+                    </div>
+                    <div>
+                        <div id="kpiHeadcount" class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">470,000+</div>
+                        <div id="kpiHeadcountSub" class="text-xs font-medium text-indigo-600 dark:text-indigo-400 mt-1">+108% Workforce Expansion</div>
+                    </div>
+                </div>
+
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between cursor-pointer" onclick="playAudio('chime')">
+                    <div class="flex items-center justify-between text-gray-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold tracking-wider uppercase flex items-center gap-1"><span class="emoji-btn text-base">💼</span> Top Unit</span>
+                        <div class="p-1.5 rounded-lg bg-purple-50 dark:bg-slate-800 text-purple-500"><i data-lucide="briefcase" class="w-4 h-4"></i></div>
+                    </div>
+                    <div>
+                        <div id="kpiTopBU" class="text-2xl font-black text-gray-900 dark:text-white tracking-tight truncate">Consulting</div>
+                        <div id="kpiTopBUSub" class="text-xs font-medium text-purple-600 dark:text-purple-400 mt-1">$201.5B 10-Yr Cumulative</div>
+                    </div>
+                </div>
+
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between cursor-pointer" onclick="playAudio('pop')">
+                    <div class="flex items-center justify-between text-gray-500 dark:text-slate-400 mb-2">
+                        <span class="text-xs font-semibold tracking-wider uppercase flex items-center gap-1"><span class="emoji-btn text-base">💡</span> Efficiency</span>
+                        <div class="p-1.5 rounded-lg bg-amber-50 dark:bg-slate-800 text-amber-500"><i data-lucide="award" class="w-4 h-4"></i></div>
+                    </div>
+                    <div>
+                        <div id="kpiEfficiency" class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">$150.0K</div>
+                        <div id="kpiEfficiencySub" class="text-xs font-medium text-amber-600 dark:text-amber-400 mt-1">Revenue / Professional</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Grid 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                <span class="emoji-btn text-lg cursor-pointer" onclick="playAudio('cash')">📊</span>
+                                FY15–FY25 Revenue Growth Trajectory ($ Billions USD)
+                            </h2>
+                            <p class="text-xs text-gray-500 dark:text-slate-400">Click any bar to inspect that fiscal year's performance</p>
+                        </div>
+                        <span id="trendBadge" class="text-xs font-semibold px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300">FY15 - FY25</span>
+                    </div>
+                    <div class="relative h-72 sm:h-80 w-full"><canvas id="revenueTrendChart"></canvas></div>
+                </div>
+
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                <span class="emoji-btn text-lg cursor-pointer" onclick="playAudio('chime')">🧩</span>
+                                Service Line Breakdown
+                            </h2>
+                            <p id="serviceSubTitle" class="text-xs text-gray-500 dark:text-slate-400">Comparable FY15–FY24 Service Line Split ($B)</p>
+                        </div>
+                    </div>
+                    <div class="relative h-72 sm:h-80 w-full flex items-center justify-center"><canvas id="serviceLineChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Charts Grid 2 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                <span class="emoji-btn text-lg cursor-pointer" onclick="playAudio('swoosh')">🌐</span>
+                                Geographic Distribution (Americas vs EMEA vs APAC)
+                            </h2>
+                            <p class="text-xs text-gray-500 dark:text-slate-400">Regional revenue contribution ($ Billions USD)</p>
+                        </div>
+                    </div>
+                    <div class="relative h-64 sm:h-72 w-full"><canvas id="regionalChart"></canvas></div>
+                </div>
+
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                <span class="emoji-btn text-lg cursor-pointer" onclick="playAudio('chord')">⚡</span>
+                                Workforce Growth vs. Revenue Efficiency
+                            </h2>
+                            <p class="text-xs text-gray-500 dark:text-slate-400">Global Headcount (K) vs Revenue Per Employee ($K)</p>
+                        </div>
+                    </div>
+                    <div class="relative h-64 sm:h-72 w-full"><canvas id="headcountChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Historical Data Table -->
+            <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                            <span class="emoji-btn text-lg cursor-pointer" onclick="playAudio('pop')">📑</span>
+                            FY15–FY25 Live Performance Table
+                        </h2>
+                        <p class="text-xs text-gray-500 dark:text-slate-400">Click any row to filter the dashboard to that specific Fiscal Year</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-slate-800">
+                    <table class="w-full text-left text-sm text-gray-600 dark:text-slate-300">
+                        <thead class="bg-gray-50 dark:bg-slate-800/90 text-xs uppercase font-bold text-gray-700 dark:text-slate-200 border-b border-gray-200 dark:border-slate-700">
+                            <tr>
+                                <th class="py-3.5 px-4">Fiscal Year</th>
+                                <th class="py-3.5 px-4">Total Revenue</th>
+                                <th class="py-3.5 px-4">YoY Growth</th>
+                                <th class="py-3.5 px-4">Audit & Assurance</th>
+                                <th class="py-3.5 px-4">Consulting</th>
+                                <th class="py-3.5 px-4">Advisory (FA+RA)</th>
+                                <th class="py-3.5 px-4">Tax & Legal</th>
+                                <th class="py-3.5 px-4">Headcount</th>
+                                <th class="py-3.5 px-4">Rev / Emp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historicalTableBody" class="divide-y divide-gray-200 dark:divide-slate-800 font-medium"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="compareSection" class="space-y-6 hidden">
+            <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span class="emoji-btn text-xl">⚖️</span> Side-by-Side Comparison Engine
+                    </h2>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">Benchmark any two fiscal years across revenue, headcount, and practice areas</p>
+                </div>
+
+                <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Baseline (A)</label>
+                        <select id="compareYearA" onchange="updateComparisonView()" class="px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-deloitte-green"></select>
+                    </div>
+                    <span class="text-lg font-black text-deloitte-green mt-4">VS</span>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-deloitte-green">Target (B)</label>
+                        <select id="compareYearB" onchange="updateComparisonView()" class="px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-deloitte-green rounded-lg text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-deloitte-green"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="compareDeltaCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5">
+                    <h3 class="text-base font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-1.5"><span class="emoji-btn">📊</span> Service Line Comparison ($B)</h3>
+                    <div class="relative h-72 w-full"><canvas id="compareServiceChart"></canvas></div>
+                </div>
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5">
+                    <h3 class="text-base font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-1.5"><span class="emoji-btn">🌍</span> Regional Revenue Comparison ($B)</h3>
+                    <div class="relative h-72 w-full"><canvas id="compareRegionChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 mt-10 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 dark:text-slate-400 gap-4">
+            <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-deloitte-green inline-block"></span>
+                <span class="font-bold text-gray-800 dark:text-slate-200">Deloitte Global Live Performance Suite</span>
+                <span>· FY 2015 – FY 2025 Reports</span>
+            </div>
+            <div>
+                <a class="underline hover:text-deloitte-green" href="https://www.deloitte.com/global/en/about/press-room/global-revenue-announcement-2025.html" target="_blank" rel="noopener noreferrer">Official FY2025 revenue announcement</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= APPLICATION SCRIPTS ================= -->
+    <script>
+        const fallbackDeloitteData = [
+            { year: "2015", fy: "FY15", revenue: 35.2, growth: 3.0, headcount: 225400, audit: 9.8,  consulting: 12.0, financialAdv: 3.3, riskAdv: 3.4, taxLegal: 6.7,  americas: 18.0, emea: 12.1, apac: 5.1 },
+            { year: "2016", fy: "FY16", revenue: 36.8, growth: 4.5, headcount: 244400, audit: 9.9,  consulting: 13.1, financialAdv: 3.4, riskAdv: 3.5, taxLegal: 6.9,  americas: 19.3, emea: 12.1, apac: 5.4 },
+            { year: "2017", fy: "FY17", revenue: 38.8, growth: 5.4, headcount: 263800, audit: 9.9,  consulting: 14.3, financialAdv: 3.6, riskAdv: 3.8, taxLegal: 7.2,  americas: 20.6, emea: 12.2, apac: 6.0 },
+            { year: "2018", fy: "FY18", revenue: 43.2, growth: 11.3, headcount: 286200, audit: 10.2, consulting: 16.5, financialAdv: 3.8, riskAdv: 4.7, taxLegal: 8.0,  americas: 22.4, emea: 14.0, apac: 6.8 },
+            { year: "2019", fy: "FY19", revenue: 46.2, growth: 6.9, headcount: 312000, audit: 10.2, consulting: 18.8, financialAdv: 4.0, riskAdv: 4.9, taxLegal: 8.3,  americas: 24.5, emea: 14.4, apac: 7.3 },
+            { year: "2020", fy: "FY20", revenue: 47.6, growth: 3.0, headcount: 334800, audit: 10.5, consulting: 19.8, financialAdv: 3.9, riskAdv: 5.1, taxLegal: 8.3,  americas: 25.3, emea: 14.8, apac: 7.5 },
+            { year: "2021", fy: "FY21", revenue: 50.2, growth: 5.5, headcount: 345300, audit: 10.5, consulting: 20.8, financialAdv: 4.5, riskAdv: 5.5, taxLegal: 8.9,  americas: 25.4, emea: 16.3, apac: 8.5 },
+            { year: "2022", fy: "FY22", revenue: 59.3, growth: 18.1, headcount: 415000, audit: 11.4, consulting: 25.8, financialAdv: 5.7, riskAdv: 6.7, taxLegal: 9.7,  americas: 31.8, emea: 17.8, apac: 9.7 },
+            { year: "2023", fy: "FY23", revenue: 64.9, growth: 9.4, headcount: 457000, audit: 12.3, consulting: 29.6, financialAdv: 5.3, riskAdv: 7.5, taxLegal: 10.2, americas: 35.8, emea: 19.2, apac: 9.9 },
+            { year: "2024", fy: "FY24", revenue: 67.2, growth: 3.5, headcount: 457000, audit: 12.9, consulting: 30.0, financialAdv: 5.1, riskAdv: 8.2, taxLegal: 11.0, americas: 36.8, emea: 20.5, apac: 9.9 },
+            { year: "2025", fy: "FY25", revenue: 70.5, growth: 4.9, headcount: 470000, audit: null, consulting: null, financialAdv: null, riskAdv: null, taxLegal: null, americas: null, emea: null, apac: null }
+        ];
+
+        let deloitteData = [];
+
+        async function fetchLiveDataset() {
+            const statusIndicator = document.getElementById('dataStatusIndicator');
+            const statusText = document.getElementById('dataStatusText');
+            const introLabel = document.getElementById('introTelemetryLabel');
+            const liveBadge = document.getElementById('livePillBadge');
+
+            try {
+                const response = await fetch('https://api.npoint.io/4156c28f321473cf4c79');
+                if (!response.ok) throw new Error('HTTP status ' + response.status);
+                const json = await response.json();
+                deloitteData = json.data || json;
+
+                statusIndicator.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block';
+                statusText.textContent = '● Connected to Live API';
+                if (introLabel) introLabel.textContent = 'DELOITTE GLOBAL TELEMETRY · LIVE DATASET VERIFIED';
+            } catch (err) {
+                console.warn('Live API fetch failed, using fallback dataset:', err);
+                deloitteData = fallbackDeloitteData;
+                statusIndicator.className = 'w-2 h-2 rounded-full bg-blue-500 inline-block';
+                statusText.textContent = 'Local Cached Stream';
+                if (introLabel) introLabel.textContent = 'DELOITTE GLOBAL TELEMETRY · LOCAL CACHED STREAM';
+                if (liveBadge) {
+                    liveBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span> Cached Local Dataset';
+                    liveBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 mr-2';
+                }
+            }
+
+            populateYearDropdowns();
+            initCharts();
+            renderTable();
+        }
+
+        function populateYearDropdowns() {
+            const mainSelect = document.getElementById('yearSelect');
+            const compA = document.getElementById('compareYearA');
+            const compB = document.getElementById('compareYearB');
+
+            mainSelect.innerHTML = '<option value="ALL" selected>All Years (11 FYs)</option>';
+            compA.innerHTML = ''; compB.innerHTML = '';
+
+            [...deloitteData].reverse().forEach(d => {
+                mainSelect.add(new Option(`${d.fy} ($${d.revenue.toFixed(1)}B)`, d.year));
+            });
+            deloitteData.forEach(d => {
+                compA.add(new Option(`${d.fy} ($${d.revenue.toFixed(1)}B)`, d.year));
+                compB.add(new Option(`${d.fy} ($${d.revenue.toFixed(1)}B)`, d.year));
+            });
+            compA.value = "2015"; compB.value = "2025";
+        }
+
+        // Web Audio Synthesizer
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        function playAudio(type) {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+
+                if (type === 'pop') {
+                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(180, now + 0.09);
+                    gain.gain.setValueAtTime(0.18, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now + 0.09);
+                } else if (type === 'cash') {
+                    [987.77, 1318.51].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                        osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+                        gain.gain.setValueAtTime(0.16, now + idx * 0.07); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.28);
+                        osc.connect(gain); gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.07); osc.stop(now + idx * 0.07 + 0.28);
+                    });
+                } else if (type === 'fanfare') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                        osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, now + idx * 0.065);
+                        gain.gain.setValueAtTime(0.14, now + idx * 0.065); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.32);
+                        osc.connect(gain); gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.065); osc.stop(now + idx * 0.065 + 0.32);
+                    });
+                } else if (type === 'chime') {
+                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.exponentialRampToValueAtTime(1760, now + 0.22);
+                    gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'swoosh') {
+                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(640, now + 0.14);
+                    gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'chord') {
+                    [440, 554.37, 659.25].forEach((freq) => {
+                        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                        osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now);
+                        gain.gain.setValueAtTime(0.09, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                        osc.connect(gain); gain.connect(ctx.destination);
+                        osc.start(now); osc.stop(now + 0.35);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundEmoji').textContent = soundEnabled ? '🔊' : '🔇';
+            document.getElementById('soundLabel').textContent = soundEnabled ? 'SFX On' : 'Muted';
+            if (soundEnabled) playAudio('pop');
+        }
+
+        // 3D Canvas Mesh Sphere
+        let globeAnimFrameId = null;
+
+        function initDeloitteNexusIntro() {
+            const splash = document.getElementById('introSplash');
+            const canvas = document.getElementById('introCanvas');
+            if (!splash || !canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            let width, height;
+            let mouseX = 0, mouseY = 0;
+
+            const NODE_COUNT = 110;
+            const nodes = [];
+            for (let i = 0; i < NODE_COUNT; i++) {
+                const phi = Math.acos(-1 + (2 * i) / NODE_COUNT);
+                const theta = Math.sqrt(NODE_COUNT * Math.PI) * phi;
+                nodes.push({ phi, theta, size: Math.random() * 2 + 1.2, isAccent: i % 6 === 0 });
+            }
+
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            window.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / width - 0.5) * 0.6;
+                mouseY = (e.clientY / height - 0.5) * 0.6;
+            });
+
+            let angleY = 0;
+            function renderGlobe() {
+                ctx.clearRect(0, 0, width, height);
+                angleY += 0.0035;
+
+                const radius = Math.min(width, height) * 0.36;
+                const cx = width / 2;
+                const cy = height / 2;
+                const projected = [];
+
+                for (let i = 0; i < nodes.length; i++) {
+                    const n = nodes[i];
+                    const rotTheta = n.theta + angleY + mouseX;
+                    const rotPhi = n.phi + mouseY * 0.4;
+
+                    const x3d = radius * Math.sin(rotPhi) * Math.cos(rotTheta);
+                    const y3d = radius * Math.cos(rotPhi);
+                    const z3d = radius * Math.sin(rotPhi) * Math.sin(rotTheta);
+
+                    const scale = 420 / (420 + z3d);
+                    projected.push({ x: cx + x3d * scale, y: cy + y3d * scale, z: z3d, scale, isAccent: n.isAccent, size: n.size });
+                }
+
+                for (let i = 0; i < projected.length; i++) {
+                    for (let j = i + 1; j < projected.length; j++) {
+                        const a = projected[i], b = projected[j];
+                        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+                        if (dist < 85 && a.z < 120 && b.z < 120) {
+                            ctx.strokeStyle = `rgba(134, 188, 37, ${(1 - dist / 85) * 0.22})`;
+                            ctx.lineWidth = 0.8;
+                            ctx.beginPath();
+                            ctx.moveTo(a.x, a.y);
+                            ctx.lineTo(b.x, b.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                for (const p of projected) {
+                    const depthAlpha = Math.max(0.12, (radius - p.z) / (2 * radius));
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * p.scale, 0, Math.PI * 2);
+                    ctx.fillStyle = p.isAccent ? `rgba(134, 188, 37, ${Math.min(1, depthAlpha + 0.35)})` : `rgba(203, 213, 225, ${depthAlpha * 0.6})`;
+                    ctx.fill();
+                }
+
+                globeAnimFrameId = requestAnimationFrame(renderGlobe);
+            }
+            renderGlobe();
+            runIntroTimelines();
+        }
+
+        function runIntroTimelines() {
+            const dataToUse = deloitteData.length ? deloitteData : fallbackDeloitteData;
+            const fyHistory = dataToUse.map(d => ({ yr: `FY ${d.year}`, rev: `$${d.revenue.toFixed(1)}B USD` }));
+
+            setTimeout(() => {
+                const yrEl = document.getElementById('scrubYearLabel');
+                const revEl = document.getElementById('scrubRevLabel');
+                const fillEl = document.getElementById('scrubFillBar');
+                if (fillEl) fillEl.style.width = '0%';
+                let idx = 0;
+                const scrubTimer = setInterval(() => {
+                    if (!yrEl || idx >= fyHistory.length) { clearInterval(scrubTimer); return; }
+                    yrEl.textContent = `TIMELINE: ${fyHistory[idx].yr}`;
+                    revEl.textContent = fyHistory[idx].rev;
+                    fillEl.style.width = `${((idx + 1) / fyHistory.length) * 100}%`;
+                    idx++;
+                }, 190);
+            }, 1600);
+
+            setTimeout(() => {
+                document.querySelectorAll('#introSplash [data-to]').forEach(el => {
+                    const target = parseFloat(el.dataset.to);
+                    const dec = parseInt(el.dataset.dec || '0', 10);
+                    const pre = el.dataset.pre || '';
+                    const suf = el.dataset.suf || '';
+                    const duration = 1500;
+                    const start = performance.now();
+
+                    function tick(now) {
+                        const progress = Math.min(1, (now - start) / duration);
+                        const eased = 1 - Math.pow(1 - progress, 4);
+                        el.textContent = `${pre}${(target * eased).toFixed(dec)}${suf}`;
+                        if (progress < 1) requestAnimationFrame(tick);
+                    }
+                    requestAnimationFrame(tick);
+                });
+            }, 1900);
+        }
+
+        function dismissIntroModal(withSound = true) {
+            const splash = document.getElementById('introSplash');
+            if (!splash || splash.classList.contains('hide')) return;
+            if (withSound) playAudio('fanfare');
+            splash.classList.add('hide');
+            setTimeout(() => {
+                if (globeAnimFrameId) cancelAnimationFrame(globeAnimFrameId);
+                splash.style.display = 'none';
+            }, 1050);
+        }
+
+        function replayIntro() {
+            playAudio('swoosh');
+            const splash = document.getElementById('introSplash');
+            splash.style.display = 'flex';
+            void splash.offsetWidth;
+            splash.classList.remove('hide');
+            initDeloitteNexusIntro();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            const splash = document.getElementById('introSplash');
+            if (splash && !splash.classList.contains('hide') && (e.key === 'Enter' || e.key === 'Escape')) {
+                dismissIntroModal(e.key === 'Enter');
+            }
+        });
+
+        // Charts Engine
+        let revenueTrendChartInstance = null;
+        let serviceLineChartInstance = null;
+        let regionalChartInstance = null;
+        let headcountChartInstance = null;
+        let compareServiceChartInstance = null;
+        let compareRegionChartInstance = null;
+        let currentSelectedYear = 'ALL';
+
+        function getThemeColors() {
+            const isDark = document.documentElement.classList.contains('dark');
+            return {
+                textColor: isDark ? '#cbd5e1' : '#334155',
+                gridColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)'
+            };
+        }
+
+        function initCharts() {
+            if (!deloitteData.length) return;
+            const colors = getThemeColors();
+            const labels = deloitteData.map(d => d.fy);
+
+            // 1. Revenue Trajectory + YoY Combo
+            const ctxRev = document.getElementById('revenueTrendChart').getContext('2d');
+            if (revenueTrendChartInstance) revenueTrendChartInstance.destroy();
+            revenueTrendChartInstance = new Chart(ctxRev, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            type: 'line', label: 'YoY Growth (%)',
+                            data: deloitteData.map(d => d.growth),
+                            borderColor: '#38bdf8', backgroundColor: '#38bdf8', borderWidth: 2.5, tension: 0.35, yAxisID: 'y1'
+                        },
+                        {
+                            type: 'bar', label: 'Global Revenue ($B)',
+                            data: deloitteData.map(d => d.revenue),
+                            backgroundColor: deloitteData.map(d => currentSelectedYear === 'ALL' || currentSelectedYear === d.year ? '#86BC25' : 'rgba(134, 188, 37, 0.25)'),
+                            borderRadius: 6, yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const yr = deloitteData[elements[0].index].year;
+                            document.getElementById('yearSelect').value = yr;
+                            handleYearChange(yr);
+                        }
+                    },
+                    plugins: { legend: { labels: { color: colors.textColor, font: { weight: '600', size: 11 } } } },
+                    scales: {
+                        x: { ticks: { color: colors.textColor }, grid: { display: false } },
+                        y: { position: 'left', ticks: { color: colors.textColor, callback: v => `$${v}B` }, grid: { color: colors.gridColor } },
+                        y1: { position: 'right', ticks: { color: '#38bdf8', callback: v => `${v}%` }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+
+            // 2. Service Line Doughnut
+            const ctxSrv = document.getElementById('serviceLineChart').getContext('2d');
+            if (serviceLineChartInstance) serviceLineChartInstance.destroy();
+            serviceLineChartInstance = new Chart(ctxSrv, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Consulting', 'Audit & Assurance', 'Tax & Legal', 'Risk Advisory', 'Financial Advisory'],
+                    datasets: [{
+                        data: getServiceLineValues(currentSelectedYear),
+                        backgroundColor: ['#86BC25', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ec4899'],
+                        borderColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff', borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '64%',
+                    plugins: { legend: { position: 'bottom', labels: { color: colors.textColor, font: { size: 11, weight: '600' } } } }
+                }
+            });
+
+            // 3. Regional Stacked Bar Chart
+            const ctxReg = document.getElementById('regionalChart').getContext('2d');
+            if (regionalChartInstance) regionalChartInstance.destroy();
+            regionalChartInstance = new Chart(ctxReg, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Americas', data: deloitteData.map(d => d.americas), backgroundColor: '#86BC25', borderRadius: 3 },
+                        { label: 'EMEA', data: deloitteData.map(d => d.emea), backgroundColor: '#0284c7', borderRadius: 3 },
+                        { label: 'Asia Pacific', data: deloitteData.map(d => d.apac), backgroundColor: '#a855f7', borderRadius: 3 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: colors.textColor, font: { size: 11, weight: '600' } } } },
+                    scales: {
+                        x: { stacked: true, ticks: { color: colors.textColor }, grid: { display: false } },
+                        y: { stacked: true, ticks: { color: colors.textColor, callback: v => `$${v}B` }, grid: { color: colors.gridColor } }
+                    }
+                }
+            });
+
+            // 4. Workforce & Revenue Productivity
+            const ctxHc = document.getElementById('headcountChart').getContext('2d');
+            if (headcountChartInstance) headcountChartInstance.destroy();
+            headcountChartInstance = new Chart(ctxHc, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Headcount (K)', data: deloitteData.map(d => +(d.headcount / 1000).toFixed(1)), borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.15)', fill: true, yAxisID: 'y' },
+                        { label: 'Rev / Employee ($K)', data: deloitteData.map(d => +((d.revenue * 1e9) / d.headcount / 1000).toFixed(1)), borderColor: '#f59e0b', borderDash: [5, 5], yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: colors.textColor, font: { size: 11, weight: '600' } } } },
+                    scales: {
+                        x: { ticks: { color: colors.textColor }, grid: { display: false } },
+                        y: { position: 'left', ticks: { color: colors.textColor, callback: v => `${v}K` }, grid: { color: colors.gridColor } },
+                        y1: { position: 'right', ticks: { color: '#f59e0b', callback: v => `$${v}K` }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function getServiceLineValues(year) {
+            if (year === 'ALL') {
+                const sum = key => +deloitteData.reduce((acc, d) => acc + (d[key] == null ? 0 : d[key]), 0).toFixed(1);
+                return [sum('consulting'), sum('audit'), sum('taxLegal'), sum('riskAdv'), sum('financialAdv')];
+            }
+            const row = deloitteData.find(d => d.year === year) || deloitteData[deloitteData.length - 1];
+            return [row.consulting, row.audit, row.taxLegal, row.riskAdv, row.financialAdv];
+        }
+
+        function handleYearChange(year) {
+            currentSelectedYear = year;
+            playAudio('pop');
+
+            if (year === 'ALL') {
+                const totalRev = deloitteData.reduce((acc, d) => acc + d.revenue, 0).toFixed(1);
+                document.getElementById('bannerTitle').textContent = 'Displaying Aggregate Data: FY 2015 to FY 2025 (11 Fiscal Years)';
+                document.getElementById('kpiRevenue').textContent = `$${totalRev}B`;
+                document.getElementById('kpiGrowth').textContent = '+100.3%';
+                document.getElementById('kpiHeadcount').textContent = '470,000+';
+                document.getElementById('kpiTopBU').textContent = 'Consulting';
+                document.getElementById('kpiEfficiency').textContent = '$150.0K';
+            } else {
+                const d = deloitteData.find(item => item.year === year);
+                if (!d) return;
+                const eff = ((d.revenue * 1e9) / d.headcount / 1000).toFixed(1);
+
+                document.getElementById('bannerTitle').textContent = `Displaying Single Fiscal Year Snapshot: ${d.fy} (Ended May 31, ${d.year})`;
+                document.getElementById('kpiRevenue').textContent = `$${d.revenue.toFixed(1)}B`;
+                document.getElementById('kpiGrowth').textContent = `+${d.growth.toFixed(1)}%`;
+                document.getElementById('kpiHeadcount').textContent = d.year === '2025' ? '470,000+' : d.headcount.toLocaleString();
+                document.getElementById('kpiTopBU').textContent = d.year === '2025' ? 'Not comparable' : 'Consulting';
+                document.getElementById('kpiEfficiency').textContent = `$${eff}K`;
+            }
+
+            if (revenueTrendChartInstance) {
+                revenueTrendChartInstance.data.datasets[1].backgroundColor = deloitteData.map(d => year === 'ALL' || year === d.year ? '#86BC25' : 'rgba(134, 188, 37, 0.22)');
+                revenueTrendChartInstance.update();
+            }
+            if (serviceLineChartInstance) {
+                serviceLineChartInstance.data.datasets[0].data = getServiceLineValues(year);
+                serviceLineChartInstance.update();
+            }
+
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('historicalTableBody');
+            tbody.innerHTML = '';
+
+            [...deloitteData].reverse().forEach(d => {
+                const isSelected = currentSelectedYear === d.year;
+                const advisory = d.financialAdv == null || d.riskAdv == null ? 'N/A' : (d.financialAdv + d.riskAdv).toFixed(1);
+                const segmentValue = val => val == null ? 'N/A' : `$${val.toFixed(1)}B`;
+                const revPerEmp = ((d.revenue * 1e9) / d.headcount / 1000).toFixed(1);
+
+                const tr = document.createElement('tr');
+                tr.className = `cursor-pointer transition ${isSelected ? 'bg-emerald-50/90 dark:bg-emerald-950/40 font-bold border-l-4 border-l-deloitte-green' : 'hover:bg-gray-50 dark:hover:bg-slate-800/60'}`;
+                tr.onclick = () => {
+                    const nextVal = currentSelectedYear === d.year ? 'ALL' : d.year;
+                    document.getElementById('yearSelect').value = nextVal;
+                    handleYearChange(nextVal);
+                };
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${isSelected ? 'bg-deloitte-green animate-ping' : 'bg-deloitte-green'}"></span>
+                        ${d.fy} (${d.year})
+                    </td>
+                    <td class="py-3 px-4 font-extrabold text-gray-900 dark:text-white">$${d.revenue.toFixed(1)}B</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">+${d.growth.toFixed(1)}%</span></td>
+                    <td class="py-3 px-4">${segmentValue(d.audit)}</td>
+                    <td class="py-3 px-4 font-semibold text-deloitte-green">${segmentValue(d.consulting)}</td>
+                    <td class="py-3 px-4">${advisory === 'N/A' ? advisory : `$${advisory}B`}</td>
+                    <td class="py-3 px-4">${segmentValue(d.taxLegal)}</td>
+                    <td class="py-3 px-4">${d.year === '2025' ? '470,000+' : d.headcount.toLocaleString()}</td>
+                    <td class="py-3 px-4 font-semibold text-amber-600 dark:text-amber-400">${d.year === '2025' ? '~$150.0K' : `$${revPerEmp}K`}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function switchView(view) {
+            playAudio('swoosh');
+            const overviewSec = document.getElementById('overviewSection');
+            const compareSec = document.getElementById('compareSection');
+            const tabOverview = document.getElementById('tabOverview');
+            const tabCompare = document.getElementById('tabCompare');
+
+            if (view === 'overview') {
+                overviewSec.classList.remove('hidden');
+                compareSec.classList.add('hidden');
+                tabOverview.classList.add('active');
+                tabCompare.classList.remove('active');
+            } else {
+                overviewSec.classList.add('hidden');
+                compareSec.classList.remove('hidden');
+                tabOverview.classList.remove('active');
+                tabCompare.classList.add('active');
+                updateComparisonView();
+            }
+        }
+
+        function updateComparisonView() {
+            playAudio('chime');
+            const yearA = document.getElementById('compareYearA').value;
+            const yearB = document.getElementById('compareYearB').value;
+            const a = deloitteData.find(d => d.year === yearA);
+            const b = deloitteData.find(d => d.year === yearB);
+            if (!a || !b) return;
+
+            const revDiff = (b.revenue - a.revenue).toFixed(1);
+            const revPct = (((b.revenue - a.revenue) / a.revenue) * 100).toFixed(1);
+            const hcDiff = b.headcount - a.headcount;
+
+            document.getElementById('compareDeltaCards').innerHTML = `
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4">
+                    <span class="text-xs font-bold uppercase text-gray-400">Revenue Delta (${a.fy} → ${b.fy})</span>
+                    <div class="text-2xl font-black text-deloitte-green mt-1">${revDiff >= 0 ? '+' : ''}$${revDiff}B (${revPct >= 0 ? '+' : ''}${revPct}%)</div>
+                    <div class="text-xs text-gray-500 mt-1">$${a.revenue}B vs $${b.revenue}B</div>
+                </div>
+                <div class="deloitte-card bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4">
+                    <span class="text-xs font-bold uppercase text-gray-400">Workforce Delta</span>
+                    <div class="text-2xl font-black text-indigo-500 mt-1">${hcDiff >= 0 ? '+' : ''}${hcDiff.toLocaleString()}</div>
+                    <div class="text-xs text-gray-500 mt-1">${a.headcount.toLocaleString()} vs ${b.headcount.toLocaleString()}</div>
+                </div>
+            `;
+
+            const colors = getThemeColors();
+
+            const ctxCS = document.getElementById('compareServiceChart').getContext('2d');
+            if (compareServiceChartInstance) compareServiceChartInstance.destroy();
+            compareServiceChartInstance = new Chart(ctxCS, {
+                type: 'bar',
+                data: {
+                    labels: ['Audit & Assurance', 'Consulting', 'Financial Adv.', 'Risk Advisory', 'Tax & Legal'],
+                    datasets: [
+                        { label: `${a.fy}`, data: [a.audit, a.consulting, a.financialAdv, a.riskAdv, a.taxLegal], backgroundColor: '#64748b' },
+                        { label: `${b.fy}`, data: [b.audit, b.consulting, b.financialAdv, b.riskAdv, b.taxLegal], backgroundColor: '#86BC25' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: colors.textColor } } } }
+            });
+
+            const ctxCR = document.getElementById('compareRegionChart').getContext('2d');
+            if (compareRegionChartInstance) compareRegionChartInstance.destroy();
+            compareRegionChartInstance = new Chart(ctxCR, {
+                type: 'bar',
+                data: {
+                    labels: ['Americas', 'EMEA', 'Asia Pacific'],
+                    datasets: [
+                        { label: `${a.fy}`, data: [a.americas, a.emea, a.apac], backgroundColor: '#0284c7' },
+                        { label: `${b.fy}`, data: [b.americas, b.emea, b.apac], backgroundColor: '#86BC25' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: colors.textColor } } } }
+            });
+        }
+
+        function toggleTheme() {
+            playAudio('pop');
+            const isDark = document.documentElement.classList.toggle('dark');
+            document.getElementById('themeIcon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+            initCharts();
+        }
+
+        function exportToCSV() {
+            playAudio('cash');
+            const headers = ['Fiscal_Year', 'Total_Revenue_Billions_USD', 'YoY_Growth_Pct', 'Headcount', 'Audit_Assurance_B', 'Consulting_B', 'Tax_Legal_B', 'Americas_B', 'EMEA_B', 'APAC_B'];
+            const rows = deloitteData.map(d => [d.fy, d.revenue, d.growth, d.headcount, d.audit, d.consulting, d.taxLegal, d.americas, d.emea, d.apac]);
+            const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+            const link = document.createElement('a');
+            link.setAttribute('href', encodeURI(csvContent));
+            link.setAttribute('download', 'Deloitte_Live_Performance_Data.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initDeloitteNexusIntro();
+            fetchLiveDataset();
+        });
+    </script>
+</body>
+</html>
